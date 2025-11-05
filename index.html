@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keychain Sales Account Management - PKR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --premium-color: #6f42c1;
+            --standard-color: #20c997;
+            --pending-color: #fd7e14;
+            --completed-color: #198754;
+        }
+        
+        .premium-badge {
+            background-color: var(--premium-color);
+        }
+        
+        .standard-badge {
+            background-color: var(--standard-color);
+        }
+        
+        .status-pending {
+            background-color: var(--pending-color);
+        }
+        
+        .status-completed {
+            background-color: var(--completed-color);
+        }
+        
+        .payment-initial {
+            background-color: #ffc107;
+            color: #000;
+        }
+        
+        .payment-full {
+            background-color: #198754;
+        }
+        
+        .payment-none {
+            background-color: #dc3545;
+        }
+        
+        .summary-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .student-table th {
+            position: sticky;
+            top: 0;
+            background-color: #f8f9fa;
+            z-index: 10;
+        }
+        
+        .profit-positive {
+            color: #198754;
+            font-weight: bold;
+        }
+        
+        .profit-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .action-buttons button {
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+        }
+        
+        .pkr-symbol::before {
+            content: "₨";
+            margin-right: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <header class="mb-4">
+            <h1 class="text-center">Keychain Sales Account Management</h1>
+            <p class="text-center text-muted">Track orders, payments, and calculate profits in Pakistani Rupees</p>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card summary-card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Orders</h5>
+                        <h2 id="total-orders" class="card-text">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card summary-card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Profit</h5>
+                        <h2 id="total-profit" class="card-text pkr-symbol">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card summary-card bg-warning text-dark">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending Initial Payments</h5>
+                        <h2 id="pending-initial" class="card-text">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card summary-card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending Full Payments</h5>
+                        <h2 id="pending-full" class="card-text">0</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Actions -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text">Filter</span>
+                    <input type="text" id="search-input" class="form-control" placeholder="Search by name, roll, department...">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select id="campus-filter" class="form-select">
+                    <option value="">All Campuses</option>
+                    <option value="KSK">KSK</option>
+                    <option value="Main">Main</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select id="payment-filter" class="form-select">
+                    <option value="">All Payment Status</option>
+                    <option value="initial">Initial Payment Done</option>
+                    <option value="full">Full Payment Done</option>
+                    <option value="none">No Payment</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <select id="order-status-filter" class="form-select">
+                    <option value="">All Order Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                        <i class="bi bi-plus-circle"></i> Add New Student
+                    </button>
+                    <button class="btn btn-outline-secondary" id="export-btn">
+                        <i class="bi bi-download"></i> Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Table -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover student-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Campus</th>
+                        <th>Department</th>
+                        <th>Name</th>
+                        <th>Session</th>
+                        <th>Roll</th>
+                        <th>Contact</th>
+                        <th>Room</th>
+                        <th>Category</th>
+                        <th>Order Status</th>
+                        <th>Payment Status</th>
+                        <th>Profit</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="student-table-body">
+                    <!-- Student data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Add Student Modal -->
+        <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addStudentModalLabel">Add New Student</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="add-student-form">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="campus" class="form-label">Campus</label>
+                                    <select class="form-select" id="campus" required>
+                                        <option value="">Select Campus</option>
+                                        <option value="KSK">KSK</option>
+                                        <option value="Main">Main</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="department" class="form-label">Department</label>
+                                    <input type="text" class="form-control" id="department" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="session" class="form-label">Session</label>
+                                    <input type="number" class="form-control" id="session" min="2000" max="2030" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="roll" class="form-label">Roll Number</label>
+                                    <input type="text" class="form-control" id="roll" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="contact" class="form-label">Contact No.</label>
+                                    <input type="text" class="form-control" id="contact">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="room" class="form-label">Room</label>
+                                    <input type="text" class="form-control" id="room">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="category" class="form-label">Category</label>
+                                    <select class="form-select" id="category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Standard">Standard (₨150)</option>
+                                        <option value="Premium">Premium (₨200)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="order-status" class="form-label">Order Status</label>
+                                    <select class="form-select" id="order-status" required>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="payment-status" class="form-label">Payment Status</label>
+                                    <select class="form-select" id="payment-status" required>
+                                        <option value="">No Payment</option>
+                                        <option value="Initial payment done">Initial Payment Done</option>
+                                        <option value="Full payment">Full Payment Done</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="save-student-btn">Save Student</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Student Modal -->
+        <div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="edit-student-form">
+                            <input type="hidden" id="edit-index">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-campus" class="form-label">Campus</label>
+                                    <select class="form-select" id="edit-campus" required>
+                                        <option value="">Select Campus</option>
+                                        <option value="KSK">KSK</option>
+                                        <option value="Main">Main</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-department" class="form-label">Department</label>
+                                    <input type="text" class="form-control" id="edit-department" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-name" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="edit-name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-session" class="form-label">Session</label>
+                                    <input type="number" class="form-control" id="edit-session" min="2000" max="2030" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-roll" class="form-label">Roll Number</label>
+                                    <input type="text" class="form-control" id="edit-roll" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-contact" class="form-label">Contact No.</label>
+                                    <input type="text" class="form-control" id="edit-contact">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-room" class="form-label">Room</label>
+                                    <input type="text" class="form-control" id="edit-room">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-category" class="form-label">Category</label>
+                                    <select class="form-select" id="edit-category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Standard">Standard (₨150)</option>
+                                        <option value="Premium">Premium (₨200)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-order-status" class="form-label">Order Status</label>
+                                    <select class="form-select" id="edit-order-status" required>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-payment-status" class="form-label">Payment Status</label>
+                                    <select class="form-select" id="edit-payment-status" required>
+                                        <option value="">No Payment</option>
+                                        <option value="Initial payment done">Initial Payment Done</option>
+                                        <option value="Full payment">Full Payment Done</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="update-student-btn">Update Student</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Pricing configuration in Pakistani Rupees
+        const PRICES = {
+            Standard: 150,
+            Premium: 200,
+            Cost: 125, // Cost for both types
+            InitialPayment: 100
+        };
+
+        // Initial student data from Excel
+        let students = [
+            { Campus: "KSK", Department: "CS", Name: "HAMAAD ALI", Session: 2025, Roll: "2025-IST-120", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "KSK", Department: "CS", Name: "SAMEEDA SHAH", Session: 2025, Roll: "2025-IST-151", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "KSK", Department: "IST", Name: "M.HUZAIFAH HAFEEZ", Session: 2025, Roll: "2025-IST-134", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "KSK", Department: "CS", Name: "REHAN AHMED", Session: 2025, Roll: "2025-CS-598", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "KSK", Department: "IST", Name: "M.REHAN SHAHID", Session: 2025, Roll: "2025-IST-141", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "KSK", Department: "ME", Name: "ZAEEM MANSHA", Session: 2023, Roll: "2023-ME-347", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "" },
+            { Campus: "KSK", Department: "IST", Name: "SAIF UR REHMAN", Session: 2025, Roll: "2025-IST-150", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "" },
+            { Campus: "KSK", Department: "SE", Name: "MALIHA JABEEN", Session: 2025, Roll: "2025(S)-SE-34", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "KSK", Department: "SE", Name: "MUNEEB QURESHI", Session: 2025, Roll: "2025(S)-SE-43", Contact: "", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "MUHAMMAD HAMZA", Session: 2025, Roll: "2025-AI-280", Contact: "", Room: "105", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "QAMAR ZAMAN", Session: 2025, Roll: "2025-AI-112", Contact: "", Room: "53", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "NAUREZ KHAN", Session: 2025, Roll: "2025-AI-213", Contact: "", Room: "99", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "SYED HASSAN MURTAZA", Session: 2025, Roll: "2025-AI-327", Contact: "", Room: "79", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "MUHAMMAD SANAULLAH", Session: 2025, Roll: "2025(S)-AI-29", Contact: "Class", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "AROOJ FATIMA", Session: 2025, Roll: "2025(S)-AI-16", Contact: "Class", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "ALI HASSAN", Session: 2025, Roll: "2025-CS-307", Contact: "", Room: "59", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "ARSHMAN ALI", Session: 2025, Roll: "2025-CS-22", Contact: "", Room: "58", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "MUHAMMAD HUZAIFA", Session: 2025, Roll: "2025-CS-43", Contact: "", Room: "58", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "MUHAMMAD UZAIR", Session: 2025, Roll: "2025-CS-172", Contact: "Shahmeer ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "UMAIR SHAHID", Session: 2021, Roll: "2021-CS-144", Contact: "Ahmad ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "H15.AYMAN", Session: 2025, Roll: "2025-CH-64", Contact: "0330-3111757", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "BBA", Name: "HASEEB JAVED", Session: 2025, Roll: "2025-BBA-367", Contact: "", Room: "73", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CH", Name: "AMMAR AHMAD", Session: 2025, Roll: "2025-CH-06", Contact: "", Room: "56", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CH", Name: "MOHAD AHMED", Session: 2025, Roll: "2025-CH-35", Contact: "", Room: "Mumtaz Hall 26", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CH", Name: "KAIF TAHIR", Session: 2025, Roll: "2025-CH-43", Contact: "0317-8816757", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Full payment" },
+            { Campus: "Main", Department: "CH", Name: "AYMAN BUTT", Session: 2025, Roll: "2025-CH-64", Contact: "0330-3111757", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "EE", Name: "HASSAN BUTT", Session: 2025, Roll: "2025-EE-36", Contact: "", Room: "100", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "EE", Name: "JOHAR ALI", Session: 2021, Roll: "2021-EE-131", Contact: "Ahmad ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ENV", Name: "NOMAN GUJJAR", Session: 2025, Roll: "2025-ENV-02", Contact: "", Room: "105", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ES", Name: "HAFIZA IMAMA", Session: 2025, Roll: "2025-ES-22", Contact: "", Room: "55", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ESM", Name: "MALIK ALI", Session: 2023, Roll: "2023-ESM-07", Contact: "", Room: "55", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ESM", Name: "HAFIZA ISMA", Session: 2024, Roll: "2024-ESM-31", Contact: "", Room: "55", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "IBM", Name: "ZUMAR CHAUDHRY", Session: 2025, Roll: "2025-BBIT-210", Contact: "", Room: "100", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "MC", Name: "MUHAMMAD ABDULLAH", Session: 2025, Roll: "2025-MC-87", Contact: "", Room: "62", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "MC", Name: "ABDUL KARIM", Session: 2025, Roll: "2025-MC-09", Contact: "0318-7817304", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ME", Name: "ABDUL AHAD", Session: 2025, Roll: "2025-Me-57", Contact: "", Room: "59", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ME", Name: "ALI ASMAR", Session: 2025, Roll: "2025-ME-159", Contact: "", Room: "98-A", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ME", Name: "SAIM NAZIM", Session: 2025, Roll: "2025-ME-188", Contact: "0317-8816757", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Full payment" },
+            { Campus: "Main", Department: "RIS", Name: "HARIS SARWAR", Session: 2025, Roll: "2025-RIS-83", Contact: "", Room: "53-A", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "SE", Name: "ABDULLAH", Session: 2025, Roll: "2025-SE-232", Contact: "", Room: "59", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "SE", Name: "MALIK USMAN", Session: 2025, Roll: "2025-SE-08", Contact: "", Room: "55", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "SE", Name: "QADEES ASGHAR", Session: 2025, Roll: "2025-SE-139", Contact: "", Room: "98", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "SE", Name: "TAYYAB MASOOD", Session: 2025, Roll: "2025-SE-163", Contact: "", Room: "98", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CYS", Name: "HAMID RAZA", Session: 2025, Roll: "2025(S)-CYS-95", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "SHEIKH BILAL", Session: 2025, Roll: "2025-CS-288", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "IST", Name: "AISAM", Session: 2025, Roll: "2025-IST-104", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "M.UMER RAZA", Session: 2025, Roll: "2025-DS-210", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "AHMAD RAUF", Session: 2025, Roll: "2025-AI-27", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "ABDUL REHMAN", Session: 2025, Roll: "2025(S)-AI-141", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "MUHAMMAD USMAN", Session: 2025, Roll: "2025(S)-AI-138", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "M.AMIR CHEEMA", Session: 2025, Roll: "2025(S)-AI-170", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CH", Name: "FARHAN ALI", Session: 2025, Roll: "2025-CH-81", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "SHANZA FATIMA", Session: 2025, Roll: "2025(S)-AI-12", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CH", Name: "AHSAN SHAHZAD", Session: 2025, Roll: "2025-CH-15", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "M.ARSLAN RAZZAQ", Session: 2025, Roll: "2025-AI-389", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "SYED JAZIM HUSSAIN", Session: 2025, Roll: "2025-AI-420", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "M.MAAZ SULTAN", Session: 2025, Roll: "2025-AI-39", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "ABDUL MANAN", Session: 2025, Roll: "2025(S)-CS-84", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "BILAL JAVED", Session: 2025, Roll: "2025(S)-CS-81", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "M.MUEEB RIAZ", Session: 2025, Roll: "2025(S)-CS-102", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "RAO MAJID ALI KHAN", Session: 2025, Roll: "2025(S)-CS-61", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "ABDULLAH AMIR", Session: 2025, Roll: "2025-AI-405", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "MUHAMMAD HUSSAIN", Session: 2025, Roll: "2025(S)-DS-22", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CYS", Name: "HASEEB-UL-HASSAN", Session: 2025, Roll: "2025(S)-CYS-101", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "SHAHMEER ASIF", Session: 2025, Roll: "2025(S)-AI-23", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "ABDULLAH BIN ABBAS", Session: 2025, Roll: "2025(S)-AI-30", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "OKASAH MUNIR", Session: 2025, Roll: "2025(S)-AI-34", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "AYESHA", Session: 2025, Roll: "2025(S)-AI-04", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "SIDRA", Session: 2025, Roll: "2025(S)-AI-14", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "ZAINAB", Session: 2025, Roll: "2025(S)-AI-05", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "HASHIM UMER", Session: 2025, Roll: "2025(S)-AI-31", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "IMAMA TAHIR", Session: 2025, Roll: "2025(S)-AI-02", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "AYESHA HAQUE", Session: 2025, Roll: "", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "AIMA FATIMA", Session: 2025, Roll: "2025(S)-AI-03", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "ANAS", Session: 2025, Roll: "2025(S)-AI-107", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "FIZA NOOR", Session: 2025, Roll: "2025(S)-AI-08", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "SAMEESHA", Session: 2025, Roll: "2025(S)-AI-17", Contact: "Samiullah ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "ME", Name: "HUZAIFA", Session: 2022, Roll: "2022-ME-119", Contact: "Chohan ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "IME", Name: "MIRZA M ALI", Session: 2022, Roll: "2022-IME-21", Contact: "Chohan ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "EE", Name: "SYED ABDULLAH SALMAN", Session: 2024, Roll: "2024-EE-182", Contact: "Chohan ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "EE", Name: "HARIS AZIZ", Session: 2024, Roll: "2024-EE-190", Contact: "Chohan ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "M HASNAIN KHALID", Session: 2025, Roll: "2025-CS-462", Contact: "Chohan ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "NAJAB ABBAS", Session: 2025, Roll: "2025-DS-288", Contact: "Chohan ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "IMAM AHMAD", Session: 2025, Roll: "2025(S)-AI-28", Contact: "", Room: "69", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "HAMID RAZA", Session: 2025, Roll: "2025(S)-AI-47", Contact: "", Room: "69", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "IME", Name: "MUHAMMAD SARIM", Session: 2025, Roll: "2025-IME-129", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "EE", Name: "ASAD ULLAH", Session: 2022, Roll: "2022-EE-173", Contact: "Bilal ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "EE", Name: "AFZAL KHURSHID", Session: 2022, Roll: "2022-EE-193", Contact: "Bilal ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CYS", Name: "RAHEEL", Session: 2025, Roll: "2025(S)-CYS-42", Contact: "Bilal ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "ABDUREHMAN", Session: 2025, Roll: "2025-AI-111", Contact: "", Room: "44", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Full payment" },
+            { Campus: "Main", Department: "CH", Name: "AWAIS AJMAL", Session: 2025, Roll: "2025-CH-70", Contact: "Ahmad ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "M.FASEEH HAIDER", Session: 2025, Roll: "2025-CS-269", Contact: "Ahmad ref.", Room: "", Category: "Standard", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CYS", Name: "MUHAMMAD ARHAM", Session: 2025, Roll: "2025-CYS-98", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CYS", Name: "MUHAMMAD DANISH", Session: 2025, Roll: "2025-CYS-111", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "KASHAN", Session: 2025, Roll: "2025-DS-206", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Full payment" },
+            { Campus: "Main", Department: "AI", Name: "H.H.MUBASHAR", Session: 2025, Roll: "2025(S)-AI-171", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "CS", Name: "RANA ABDULLAH", Session: 2025, Roll: "2025(S)-CS-71", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Full payment" },
+            { Campus: "Main", Department: "CYS", Name: "F.HASSAN GILANI", Session: 2025, Roll: "2025-CYS-171", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "AI", Name: "UMER QURESHI", Session: 2025, Roll: "2025-AI-104", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "BHUTTA", Session: 2025, Roll: "2025(S)-DS-105", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "HUSSNAIN", Session: 2025, Roll: "2025(S)-DS-22", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "FAIZAN", Session: 2025, Roll: "2025(S)-DS-05", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "ABDUL WAHAB", Session: 2025, Roll: "2025(S)-DS-76", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" },
+            { Campus: "Main", Department: "DS", Name: "ABDUR RAFAY", Session: 2025, Roll: "2025(S)-DS-60", Contact: "Gujjar ref.", Room: "", Category: "Premium", OrderStatus: "Pending", PaymentStatus: "Initial payment done" }
+        ];
+
+        // Load data from localStorage if available
+        if (localStorage.getItem('students')) {
+            students = JSON.parse(localStorage.getItem('students'));
+        }
+
+        // Calculate profit for a student
+        function calculateProfit(student) {
+            if (student.OrderStatus !== "Completed") return 0;
+            
+            let price = PRICES[student.Category];
+            let cost = PRICES.Cost;
+            
+            if (student.PaymentStatus === "Initial payment done") {
+                return PRICES.InitialPayment - cost;
+            } else if (student.PaymentStatus === "Full payment") {
+                return price - cost;
+            }
+            
+            return -cost; // If no payment but order is completed
+        }
+
+        // Render student table
+        function renderStudentTable(filteredStudents = students) {
+            const tableBody = document.getElementById('student-table-body');
+            tableBody.innerHTML = '';
+            
+            filteredStudents.forEach((student, index) => {
+                const profit = calculateProfit(student);
+                const profitClass = profit >= 0 ? 'profit-positive' : 'profit-negative';
+                const profitSymbol = profit >= 0 ? '+' : '';
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${student.Campus}</td>
+                    <td>${student.Department}</td>
+                    <td>${student.Name}</td>
+                    <td>${student.Session}</td>
+                    <td>${student.Roll}</td>
+                    <td>${student.Contact}</td>
+                    <td>${student.Room}</td>
+                    <td><span class="badge ${student.Category === 'Premium' ? 'premium-badge' : 'standard-badge'}">${student.Category}</span></td>
+                    <td><span class="badge ${student.OrderStatus === 'Pending' ? 'status-pending' : 'status-completed'}">${student.OrderStatus}</span></td>
+                    <td>
+                        <span class="badge ${
+                            student.PaymentStatus === 'Initial payment done' ? 'payment-initial' : 
+                            student.PaymentStatus === 'Full payment' ? 'payment-full' : 'payment-none'
+                        }">
+                            ${student.PaymentStatus || 'No Payment'}
+                        </span>
+                    </td>
+                    <td class="${profitClass} pkr-symbol">${profitSymbol}${profit}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-outline-primary edit-btn" data-index="${index}">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger delete-btn" data-index="${index}">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Add event listeners to edit and delete buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.getAttribute('data-index');
+                    openEditModal(index);
+                });
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.getAttribute('data-index');
+                    if (confirm('Are you sure you want to delete this student record?')) {
+                        students.splice(index, 1);
+                        saveData();
+                        renderStudentTable();
+                        updateSummary();
+                    }
+                });
+            });
+        }
+
+        // Update summary cards
+        function updateSummary() {
+            const totalOrders = students.length;
+            const totalProfit = students.reduce((sum, student) => sum + calculateProfit(student), 0);
+            const pendingInitial = students.filter(student => 
+                student.PaymentStatus === "" && student.OrderStatus === "Pending"
+            ).length;
+            const pendingFull = students.filter(student => 
+                student.PaymentStatus !== "Full payment" && student.OrderStatus === "Pending"
+            ).length;
+            
+            document.getElementById('total-orders').textContent = totalOrders;
+            document.getElementById('total-profit').textContent = totalProfit;
+            document.getElementById('pending-initial').textContent = pendingInitial;
+            document.getElementById('pending-full').textContent = pendingFull;
+        }
+
+        // Open edit modal
+        function openEditModal(index) {
+            const student = students[index];
+            document.getElementById('edit-index').value = index;
+            document.getElementById('edit-campus').value = student.Campus;
+            document.getElementById('edit-department').value = student.Department;
+            document.getElementById('edit-name').value = student.Name;
+            document.getElementById('edit-session').value = student.Session;
+            document.getElementById('edit-roll').value = student.Roll;
+            document.getElementById('edit-contact').value = student.Contact;
+            document.getElementById('edit-room').value = student.Room;
+            document.getElementById('edit-category').value = student.Category;
+            document.getElementById('edit-order-status').value = student.OrderStatus;
+            document.getElementById('edit-payment-status').value = student.PaymentStatus;
+            
+            const editModal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+            editModal.show();
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('students', JSON.stringify(students));
+        }
+
+        // Filter students
+        function filterStudents() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const campusFilter = document.getElementById('campus-filter').value;
+            const paymentFilter = document.getElementById('payment-filter').value;
+            const orderStatusFilter = document.getElementById('order-status-filter').value;
+            
+            let filtered = students.filter(student => {
+                const matchesSearch = 
+                    student.Name.toLowerCase().includes(searchTerm) ||
+                    student.Roll.toLowerCase().includes(searchTerm) ||
+                    student.Department.toLowerCase().includes(searchTerm);
+                
+                const matchesCampus = !campusFilter || student.Campus === campusFilter;
+                
+                const matchesPayment = 
+                    !paymentFilter ||
+                    (paymentFilter === 'initial' && student.PaymentStatus === 'Initial payment done') ||
+                    (paymentFilter === 'full' && student.PaymentStatus === 'Full payment') ||
+                    (paymentFilter === 'none' && !student.PaymentStatus);
+                
+                const matchesOrderStatus = !orderStatusFilter || student.OrderStatus === orderStatusFilter;
+                
+                return matchesSearch && matchesCampus && matchesPayment && matchesOrderStatus;
+            });
+            
+            renderStudentTable(filtered);
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Render initial table and summary
+            renderStudentTable();
+            updateSummary();
+            
+            // Add event listeners for filters
+            document.getElementById('search-input').addEventListener('input', filterStudents);
+            document.getElementById('campus-filter').addEventListener('change', filterStudents);
+            document.getElementById('payment-filter').addEventListener('change', filterStudents);
+            document.getElementById('order-status-filter').addEventListener('change', filterStudents);
+            
+            // Add event listener for save student button
+            document.getElementById('save-student-btn').addEventListener('click', function() {
+                const campus = document.getElementById('campus').value;
+                const department = document.getElementById('department').value;
+                const name = document.getElementById('name').value;
+                const session = parseInt(document.getElementById('session').value);
+                const roll = document.getElementById('roll').value;
+                const contact = document.getElementById('contact').value;
+                const room = document.getElementById('room').value;
+                const category = document.getElementById('category').value;
+                const orderStatus = document.getElementById('order-status').value;
+                const paymentStatus = document.getElementById('payment-status').value;
+                
+                if (campus && department && name && session && roll && category && orderStatus) {
+                    const newStudent = {
+                        Campus: campus,
+                        Department: department,
+                        Name: name,
+                        Session: session,
+                        Roll: roll,
+                        Contact: contact,
+                        Room: room,
+                        Category: category,
+                        OrderStatus: orderStatus,
+                        PaymentStatus: paymentStatus
+                    };
+                    
+                    students.push(newStudent);
+                    saveData();
+                    renderStudentTable();
+                    updateSummary();
+                    
+                    // Reset form and close modal
+                    document.getElementById('add-student-form').reset();
+                    bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
+                } else {
+                    alert('Please fill in all required fields');
+                }
+            });
+            
+            // Add event listener for update student button
+            document.getElementById('update-student-btn').addEventListener('click', function() {
+                const index = document.getElementById('edit-index').value;
+                const campus = document.getElementById('edit-campus').value;
+                const department = document.getElementById('edit-department').value;
+                const name = document.getElementById('edit-name').value;
+                const session = parseInt(document.getElementById('edit-session').value);
+                const roll = document.getElementById('edit-roll').value;
+                const contact = document.getElementById('edit-contact').value;
+                const room = document.getElementById('edit-room').value;
+                const category = document.getElementById('edit-category').value;
+                const orderStatus = document.getElementById('edit-order-status').value;
+                const paymentStatus = document.getElementById('edit-payment-status').value;
+                
+                if (campus && department && name && session && roll && category && orderStatus) {
+                    students[index] = {
+                        Campus: campus,
+                        Department: department,
+                        Name: name,
+                        Session: session,
+                        Roll: roll,
+                        Contact: contact,
+                        Room: room,
+                        Category: category,
+                        OrderStatus: orderStatus,
+                        PaymentStatus: paymentStatus
+                    };
+                    
+                    saveData();
+                    renderStudentTable();
+                    updateSummary();
+                    
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('editStudentModal')).hide();
+                } else {
+                    alert('Please fill in all required fields');
+                }
+            });
+            
+            // Add event listener for export button
+            document.getElementById('export-btn').addEventListener('click', function() {
+                // Convert students data to CSV
+                const headers = ['Campus', 'Department', 'Name', 'Session', 'Roll', 'Contact', 'Room', 'Category', 'OrderStatus', 'PaymentStatus', 'Profit'];
+                const csvRows = [headers.join(',')];
+                
+                students.forEach(student => {
+                    const profit = calculateProfit(student);
+                    const row = [
+                        student.Campus,
+                        student.Department,
+                        student.Name,
+                        student.Session,
+                        student.Roll,
+                        student.Contact,
+                        student.Room,
+                        student.Category,
+                        student.OrderStatus,
+                        student.PaymentStatus,
+                        profit
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                
+                const csvString = csvRows.join('\n');
+                const blob = new Blob([csvString], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'keychain_sales_data.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        });
+    </script>
+</body>
+</html>
